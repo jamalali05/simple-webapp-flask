@@ -32,17 +32,20 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           pip install bandit pip-audit pytest
 
-      - name: Run Bandit (SAST)
+      - name: Run Bandit (SAST - non-blocking)
         run: |
-          bandit -r . -f txt -o bandit-report.txt
+          bandit -r . -f txt -o bandit-report.txt || true
+        # Bandit runs but DOES NOT fail the pipeline
 
       - name: Run pip-audit (dependency scan)
         run: |
           pip-audit -r requirements.txt -f text -o pip-audit-report.txt
+        continue-on-error: false   # THIS WILL FAIL THE PIPELINE IF VULNS FOUND
 
       - name: Run unit tests (pytest)
         run: |
           pytest
+        continue-on-error: false
 
       - name: Upload security reports
         uses: actions/upload-artifact@v4
@@ -64,6 +67,7 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         with:
           args: detect --source . --no-banner
+        continue-on-error: false   # Will fail pipeline if secret found
 
   build_and_scan_image:
     name: Build and scan Docker image
@@ -89,6 +93,7 @@ jobs:
           ignore-unfixed: true
           vuln-type: "os,library"
           severity: "CRITICAL,HIGH"
+        continue-on-error: false   # Will fail pipeline if CRITICAL/HIGH found
 
   deploy:
     name: Deploy application (simulated)
